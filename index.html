@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>じゃんけん | Rock‑Paper‑Scissors</title>
+  <meta name="description" content="ブラウザで遊べるシンプル＆高速なじゃんけんゲーム。キーボード操作にも対応 (R/P/S)。" />
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#111b31; --text:#f6f8ff; --muted:#9fb0d1; --accent:#7cc4ff; --win:#6be585; --lose:#ff6b6b; --draw:#ffc857;
+      --radius:16px;
+    }
+    @media (prefers-color-scheme: light){
+      :root{ --bg:#f6f7fb; --panel:#ffffff; --text:#0b1220; --muted:#5b6a86; --accent:#0067c7; --win:#1aa34a; --lose:#c62828; --draw:#b78400; }
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:radial-gradient(1200px 800px at 80% -10%, #15325f22, transparent), var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans JP, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      display:flex; align-items:center; justify-content:center; padding:24px;}
+    .app{width:min(960px,100%);}
+    .card{background:linear-gradient(180deg, #ffffff07, #00000000); border:1px solid #ffffff14; border-radius:var(--radius); box-shadow:0 10px 30px #00000033; overflow:hidden}
+    header{padding:20px 24px; display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;}
+    header h1{margin:0; font-size:clamp(20px,4vw,28px); letter-spacing:0.02em}
+    header .sub{color:var(--muted); font-size:14px}
+    .grid{display:grid; grid-template-columns:1.2fr 1fr; gap:12px; padding:12px}
+    @media (max-width:800px){ .grid{grid-template-columns:1fr;}}
+
+    .panel{background:var(--panel); border-radius:calc(var(--radius) - 8px); padding:20px; border:1px solid #00000022}
+
+    .result{display:grid; grid-template-columns:1fr 100px 1fr; align-items:center; gap:12px}
+    .result .face{font-size:clamp(48px,10vw,84px); text-align:center; line-height:1}
+    .versus{font-weight:700; text-align:center; color:var(--muted)}
+    .judge{margin-top:14px; text-align:center; font-weight:700; font-size:clamp(18px,3.2vw,22px)}
+    .judge.win{color:var(--win)} .judge.lose{color:var(--lose)} .judge.draw{color:var(--draw)}
+
+    .controls{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:18px}
+    button.choice{border:none; background:#ffffff08; color:var(--text); padding:18px; border-radius:14px; font-size:clamp(16px,3vw,22px); cursor:pointer; transition:transform .05s ease, background .2s ease, outline-color .2s ease; outline:2px solid transparent}
+    button.choice:hover{background:#ffffff12}
+    button.choice:active{transform:translateY(2px)}
+    button.choice .emo{font-size:clamp(28px,6vw,34px)}
+
+    .score{display:flex; gap:14px; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:12px}
+    .score .pill{padding:8px 12px; background:#ffffff08; border-radius:999px; font-weight:600; font-variant-numeric:tabular-nums}
+
+    .tools{display:flex; gap:10px; justify-content:center; margin-top:10px}
+    .tools button{background:transparent; color:var(--muted); border:1px dashed #ffffff33; padding:8px 12px; border-radius:12px; cursor:pointer}
+    .tools button:hover{border-style:solid; color:var(--text)}
+
+    .history{display:grid; gap:8px; max-height:280px; overflow:auto; padding-right:4px}
+    .row{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; align-items:center; background:#ffffff07; padding:10px 12px; border-radius:10px; border:1px solid #ffffff12}
+    .row small{color:var(--muted)}
+
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#0000002b; padding:2px 6px; border-radius:6px; border:1px solid #ffffff26}
+
+    footer{padding:14px 22px; color:var(--muted); font-size:12px; text-align:center}
+    .pop{animation:pop .25s ease}
+    @keyframes pop{0%{transform:scale(.9); opacity:.7} 100%{transform:scale(1); opacity:1}}
+  </style>
+</head>
+<body>
+  <main class="app card" role="application" aria-label="じゃんけんゲーム">
+    <header>
+      <div>
+        <h1>じゃんけん <span aria-hidden>✊✋✌️</span></h1>
+        <div class="sub">クリック or <span class="kbd">R</span>/<span class="kbd">P</span>/<span class="kbd">S</span> で手を出す</div>
+      </div>
+    </header>
+
+    <section class="grid" aria-live="polite">
+      <div class="panel">
+        <div class="result">
+          <div class="face" id="youFace" aria-label="あなたの手">—</div>
+          <div class="versus">VS</div>
+          <div class="face" id="cpuFace" aria-label="CPUの手">—</div>
+        </div>
+        <div id="judge" class="judge" aria-live="assertive">手を選んでね！</div>
+
+        <div class="controls" role="group" aria-label="手を選ぶ">
+          <button class="choice" data-choice="rock" aria-label="グー (R)"><div class="emo">✊</div><div>グー</div></button>
+          <button class="choice" data-choice="paper" aria-label="パー (P)"><div class="emo">✋</div><div>パー</div></button>
+          <button class="choice" data-choice="scissors" aria-label="チョキ (S)"><div class="emo">✌️</div><div>チョキ</div></button>
+        </div>
+
+        <div class="score" aria-label="スコア">
+          <div class="pill" id="youScore">あなた: 0</div>
+          <div class="pill" id="cpuScore">CPU: 0</div>
+          <div class="pill" id="drawScore">あいこ: 0</div>
+        </div>
+
+        <div class="tools">
+          <button id="resetBtn" aria-label="スコアと履歴をリセット">リセット</button>
+        </div>
+      </div>
+
+      <div class="panel" aria-label="履歴">
+        <h2 style="margin:0 0 10px 0; font-size:16px">履歴 <small class="sub">(新しい順)</small></h2>
+        <div class="history" id="history" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <footer>
+      © <span id="year"></span> Janken. / Built with vanilla JS. <span class="sub">アクセシブル・レスポンシブ対応</span>
+    </footer>
+  </main>
+
+  <script>
+    const EMO = { rock:"✊", paper:"✋", scissors:"✌️" };
+    const JP  = { rock:"グー", paper:"パー", scissors:"チョキ" };
+    const CHOICES = Object.keys(EMO);
+
+    const youFace = document.getElementById('youFace');
+    const cpuFace = document.getElementById('cpuFace');
+    const judgeEl = document.getElementById('judge');
+    const youScoreEl = document.getElementById('youScore');
+    const cpuScoreEl = document.getElementById('cpuScore');
+    const drawScoreEl = document.getElementById('drawScore');
+    const historyEl = document.getElementById('history');
+    const yearEl = document.getElementById('year');
+    yearEl.textContent = new Date().getFullYear();
+
+    let you=0, cpu=0, draw=0;
+
+    function cpuPick(){ return CHOICES[Math.floor(Math.random()*CHOICES.length)] }
+
+    function judge(y, c){
+      if(y===c) return 'draw';
+      const win = (y==='rock'&&c==='scissors')||(y==='scissors'&&c==='paper')||(y==='paper'&&c==='rock');
+      return win? 'win' : 'lose';
+    }
+
+    function updateScore(outcome){
+      if(outcome==='win') you++; else if(outcome==='lose') cpu++; else draw++;
+      youScoreEl.textContent = `あなた: ${you}`;
+      cpuScoreEl.textContent = `CPU: ${cpu}`;
+      drawScoreEl.textContent = `あいこ: ${draw}`;
+    }
+
+    function pushHistory(y, c, outcome){
+      const row = document.createElement('div');
+      row.className = 'row pop';
+      const ts = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      const outcomeJP = outcome==='win'? '勝ち' : outcome==='lose'? '負け' : 'あいこ';
+      row.innerHTML = `
+        <div><small>${ts}</small></div>
+        <div>あなた: ${EMO[y]} <small>${JP[y]}</small></div>
+        <div>CPU: ${EMO[c]} <small>${JP[c]}</small></div>
+      `;
+      historyEl.prepend(row);
+      // Optional: announce
+      const live = document.createElement('div');
+      live.setAttribute('aria-live','assertive');
+      live.style.position = 'absolute'; live.style.left='-9999px';
+      live.textContent = `結果: ${outcomeJP}`;
+      document.body.appendChild(live);
+      setTimeout(()=>live.remove(), 400);
+    }
+
+    function play(choice){
+      const y = choice;
+      const c = cpuPick();
+      const r = judge(y,c);
+      // Faces
+      youFace.textContent = EMO[y];
+      cpuFace.textContent = EMO[c];
+      youFace.classList.add('pop');
+      cpuFace.classList.add('pop');
+      setTimeout(()=>{youFace.classList.remove('pop'); cpuFace.classList.remove('pop');}, 200);
+
+      // Judge text
+      judgeEl.className = 'judge ' + r;
+      judgeEl.textContent = r==='win'? 'あなたの勝ち！' : r==='lose'? 'あなたの負け…' : 'あいこ！もう一回';
+
+      updateScore(r);
+      pushHistory(y,c,r);
+    }
+
+    // Buttons
+    document.querySelectorAll('button.choice').forEach(btn=>{
+      btn.addEventListener('click', ()=>play(btn.dataset.choice));
+    });
+
+    // Keyboard shortcuts R/P/S
+    const keyMap = { r:'rock', p:'paper', s:'scissors', R:'rock', P:'paper', S:'scissors' };
+    window.addEventListener('keydown', (e)=>{
+      const ch = keyMap[e.key];
+      if(ch){ e.preventDefault(); play(ch); }
+    });
+
+    // Reset
+    document.getElementById('resetBtn').addEventListener('click', ()=>{
+      you=cpu=draw=0; updateScore('draw'); draw=0; // trick to refresh numbers
+      youFace.textContent = '—';
+      cpuFace.textContent = '—';
+      judgeEl.className = 'judge';
+      judgeEl.textContent = '手を選んでね！';
+      historyEl.innerHTML = '';
+    });
+  </script>
+</body>
+</html>
